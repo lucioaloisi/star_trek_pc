@@ -1,0 +1,1377 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#030208">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+    <title>Minigioco Enterprise vs Klingon D7 - Vibrant Space</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #030208;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #00ffcc;
+        }
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas {
+            background-color: #020205;
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+        }
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 25px;
+            pointer-events: none;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: #555555;
+            text-transform: uppercase;
+            z-index: 10;
+        }
+        #btn-menu {
+            position: absolute;
+            top: calc(max(2vh, 10px) + env(safe-area-inset-top, 0px));
+            right: calc(max(3vw, 18px) + env(safe-area-inset-right, 0px));
+            width: clamp(26px, 7vh, 34px);
+            height: clamp(26px, 7vh, 34px);
+            border-radius: 50%;
+            border: 2px solid #4a4a4a;
+            background: transparent;
+            color: #888;
+            opacity: 0.5;
+            font-family: 'Orbitron', 'Eurostile', 'Bank Gothic', 'Segoe UI', Roboto, Arial, sans-serif;
+            font-size: clamp(12px, 3.2vh, 16px);
+            font-weight: 700;
+            line-height: 1;
+            padding: 0;
+            cursor: pointer;
+            z-index: 10;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #btn-menu:active { border-color: #9a9a9a; color: #ddd; }
+        #touch-controls {
+            position: absolute;
+            inset: 0;
+            display: none;
+            pointer-events: none;
+            z-index: 10;
+            padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+        }
+        body.touch #touch-controls { display: block; }
+        .btn-touch {
+            position: absolute;
+            bottom: max(5vh, 16px);
+            width: clamp(40px, 10vh, 60px);
+            height: clamp(40px, 10vh, 60px);
+            background: transparent;
+            border: 2px solid rgba(150, 150, 150, 0.55);
+            border-radius: 50%;
+            pointer-events: auto;
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+            transition: border-color .05s;
+        }
+        .btn-touch.fire { border-color: rgba(255, 255, 255, 1); }
+        .btn-touch.active {
+            border-color: rgba(220, 220, 220, 0.95);
+        }
+        #btn-thrust { left: max(3vw, 18px); opacity: 0.55; }
+        /* area sensibile invisibile: 100px in più in ogni direzione, per premere senza guardare */
+        #btn-thrust::after { content: ''; position: absolute; inset: -100px; border-radius: 50%; }
+        #wheel {
+            position: absolute;
+            right: max(3vw, 18px);
+            bottom: max(5vh, 16px);
+            width: clamp(170px, 30vw, 280px);
+            height: clamp(32px, 8vh, 46px);
+            border: 4px solid #4a4a4a;
+            border-radius: 10px;
+            opacity: 0.55;
+            pointer-events: auto;
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+            transition: border-color .05s;
+        }
+        #wheel.active { border-color: #6a6a6a; }
+        #wheel-knob {
+            position: absolute;
+            top: 3px; bottom: 3px;
+            left: 50%;
+            width: 8px;
+            margin-left: -4px;
+            border-radius: 4px;
+            background: rgba(150, 150, 150, 0.75);
+            pointer-events: none;
+        }
+        #wheel.active #wheel-knob { background: rgba(220, 220, 220, 0.95); }
+        #start-screen {
+            position: fixed; inset: 0; z-index: 90;
+            background: #030208; color: #777;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            text-align: center;
+            font-family: 'Orbitron', 'Eurostile', 'Bank Gothic', 'Segoe UI', Roboto, Arial, sans-serif;
+            text-transform: uppercase;
+            padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+            -webkit-tap-highlight-color: transparent;
+        }
+        #credits { display: inline-block; }
+        #credit-name {
+            display: block;
+            white-space: nowrap;
+            font-size: clamp(11px, 2.6vh, 14px);
+            font-weight: 500;
+            letter-spacing: 0.75em;
+            margin-right: -0.75em; /* compensa lo spazio finale del letter-spacing */
+        }
+        #credit-company {
+            display: block;
+            width: 0; min-width: 100%;
+            white-space: nowrap;
+            margin-top: clamp(6px, 1.6vh, 10px);
+            font-size: clamp(7px, 1.7vh, 9px);
+            font-weight: 500;
+            letter-spacing: 0.06em;
+            text-align: justify;
+            text-align-last: justify;
+        }
+        #choose {
+            margin-top: clamp(22px, 8vh, 48px);
+            font-size: clamp(9px, 2.2vh, 12px);
+            font-weight: 500;
+            letter-spacing: 0.3em;
+            color: #777;
+        }
+        #levels {
+            display: flex; justify-content: center;
+            gap: clamp(12px, 3vw, 22px);
+            margin-top: clamp(14px, 4vh, 26px);
+        }
+        .level-btn {
+            width: clamp(44px, 13vh, 64px);
+            height: clamp(44px, 13vh, 64px);
+            border-radius: 50%;
+            border: 3px solid #4a4a4a;
+            background: transparent;
+            color: #888;
+            font-family: inherit;
+            font-size: clamp(16px, 4.5vh, 24px);
+            font-weight: 700;
+            cursor: pointer;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            transition: border-color .08s, color .08s;
+        }
+        .level-btn:active, .level-btn:hover { border-color: #9a9a9a; color: #ddd; }
+        #rotate-hint {
+            position: fixed; inset: 0; z-index: 100; display: none;
+            background: #030208; color: #00ffcc;
+            justify-content: center; align-items: center;
+            text-align: center; font-size: 20px; padding: 30px;
+        }
+        @media (hover: hover) and (pointer: fine) {
+            #hud { top: 28px; left: 36px; font-size: 28px; letter-spacing: 4px; }
+            #btn-menu { width: clamp(52px, 14vh, 68px); height: clamp(52px, 14vh, 68px); border-width: 3px; font-size: clamp(24px, 6.4vh, 32px); }
+            #credit-name { font-size: clamp(22px, 5.2vh, 28px); }
+            #credit-company { font-size: clamp(14px, 3.4vh, 18px); }
+            #choose { font-size: clamp(18px, 4.4vh, 24px); }
+            .level-btn { width: clamp(88px, 26vh, 128px); height: clamp(88px, 26vh, 128px); border-width: 5px; font-size: clamp(32px, 9vh, 48px); }
+            #levels { gap: clamp(24px, 6vw, 44px); }
+        }
+        @media (orientation: portrait) and (hover: none) and (pointer: coarse) {
+            #rotate-hint { display: flex; }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="hud">
+            SHIELDS: <span id="shields" style="color: #777777;">100</span>% &nbsp;|&nbsp; SCORE: <span id="score-val" style="color: #777777;">0</span>
+        </div>
+        <button id="btn-menu" aria-label="Torna alla schermata iniziale">R</button>
+        <div id="touch-controls">
+            <div id="wheel"><div id="wheel-knob"></div></div>
+            <div class="btn-touch" id="btn-thrust"></div>
+        </div>
+    </div>
+    <div id="start-screen">
+        <div id="credits">
+            <span id="credit-name">Lucio Aloisi</span>
+            <span id="credit-company">Colorado Smith snc Brindisi &copy;</span>
+        </div>
+        <div id="choose">Scegli la difficoltà del gioco</div>
+        <div id="levels">
+            <button class="level-btn" data-level="1">1</button>
+            <button class="level-btn" data-level="2">2</button>
+            <button class="level-btn" data-level="3">3</button>
+            <button class="level-btn" data-level="4">4</button>
+            <button class="level-btn" data-level="5">5</button>
+        </div>
+    </div>
+    <div id="rotate-hint">Ruota il telefono in orizzontale 📱↻</div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const shieldsEl = document.getElementById('shields');
+        const scoreValEl = document.getElementById('score-val');
+
+        // Scala di disegno 1:1 (prima 0.5): tutti gli oggetti appaiono 2 volte più grandi
+        const SCALE = 1.0;
+        let W = window.innerWidth / SCALE, H = window.innerHeight / SCALE;
+        let DPR = 1;
+        function resize() {
+            DPR = Math.min(window.devicePixelRatio || 1, 2);
+            canvas.width = Math.round(window.innerWidth * DPR);
+            canvas.height = Math.round(window.innerHeight * DPR);
+            W = window.innerWidth / SCALE;
+            H = window.innerHeight / SCALE;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        const keys = { ArrowUp: false, ArrowLeft: false, ArrowRight: false, Control: false };
+
+        window.addEventListener('keydown', (e) => {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
+            if (e.code === 'KeyM' && !e.repeat) toggleMute();
+            if (e.code === 'KeyF' && !e.repeat) toggleFullscreen();
+            if (e.code === 'Escape' && !e.repeat && gameStarted) backToMenu();
+            if (!gameStarted && /^(Digit|Numpad)[1-5]$/.test(e.code)) startGame(parseInt(e.code.slice(-1), 10));
+            if (e.code === 'Space') keys.Control = true;
+            if (e.code === 'KeyW') keys.ArrowUp = true;
+            if (e.code === 'ArrowUp' || e.key === 'ArrowUp') keys.ArrowUp = true;
+            if (e.code === 'ArrowLeft' || e.key === 'ArrowLeft' || e.code === 'KeyA') keys.ArrowLeft = true;
+            if (e.code === 'ArrowRight' || e.key === 'ArrowRight' || e.code === 'KeyD') keys.ArrowRight = true;
+            if (e.code === 'ControlLeft' || e.code === 'ControlRight' || e.key === 'Control') keys.Control = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'Space') keys.Control = false;
+            if (e.code === 'KeyW') keys.ArrowUp = false;
+            if (e.code === 'ArrowUp' || e.key === 'ArrowUp') keys.ArrowUp = false;
+            if (e.code === 'ArrowLeft' || e.key === 'ArrowLeft' || e.code === 'KeyA') keys.ArrowLeft = false;
+            if (e.code === 'ArrowRight' || e.key === 'ArrowRight' || e.code === 'KeyD') keys.ArrowRight = false;
+            if (e.code === 'ControlLeft' || e.code === 'ControlRight' || e.key === 'Control') keys.Control = false;
+        });
+
+        // ===== Controlli touch (multi-touch con pointer events) =====
+        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) document.body.classList.add('touch');
+        const bindTouch = (id, keyName) => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            const pointers = new Set();
+            const sync = () => { keys[keyName] = pointers.size > 0; btn.classList.toggle('active', pointers.size > 0); };
+            btn.addEventListener('pointerdown', (e) => { e.preventDefault(); btn.setPointerCapture(e.pointerId); pointers.add(e.pointerId); sync(); });
+            ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev =>
+                btn.addEventListener(ev, (e) => { pointers.delete(e.pointerId); sync(); }));
+            btn.addEventListener('contextmenu', (e) => e.preventDefault());
+        };
+        // ===== Barra touch: scorri per sterzare (progressivo) =====
+        let steerPos = 0, steerHeld = false; // -1 (sinistra) ... +1 (destra)
+        let fireTapUntil = 0;                // un tap sul pulsante motore abilita uno sparo entro questo istante
+        const wheelEl = document.getElementById('wheel');
+        const knobEl = document.getElementById('wheel-knob');
+        (function setupSteer() {
+            if (!wheelEl) return;
+            let pid = null;
+            const setFromEvent = (e) => {
+                const r = wheelEl.getBoundingClientRect();
+                const half = r.width / 2;
+                steerPos = Math.max(-1, Math.min(1, (e.clientX - (r.left + half)) / half));
+            };
+            wheelEl.addEventListener('pointerdown', (e) => {
+                if (pid !== null) return;
+                e.preventDefault();
+                pid = e.pointerId;
+                wheelEl.setPointerCapture(pid);
+                steerHeld = true; wheelEl.classList.add('active');
+                setFromEvent(e);
+            });
+            wheelEl.addEventListener('pointermove', (e) => {
+                if (e.pointerId !== pid) return;
+                e.preventDefault();
+                setFromEvent(e);
+            });
+            const end = (e) => {
+                if (e.pointerId !== pid) return;
+                pid = null; steerHeld = false; wheelEl.classList.remove('active');
+            };
+            ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => wheelEl.addEventListener(ev, end));
+            wheelEl.addEventListener('contextmenu', (e) => e.preventDefault());
+        })();
+        // ===== Pulsante motore: tieni premuto = spinta, tocca (tap) = sparo =====
+        (function setupThrust() {
+            const btn = document.getElementById('btn-thrust');
+            if (!btn) return;
+            const TAP_MS = 220, HOLD_MS = 130;
+            let pid = null, t0 = 0, timer = null, thrusting = false;
+            const tapFire = () => {
+                fireTapUntil = Date.now() + 170;
+                btn.classList.add('fire');
+                setTimeout(() => btn.classList.remove('fire'), 90);
+            };
+            const stopThrust = () => { thrusting = false; keys.ArrowUp = false; btn.classList.remove('active'); };
+            btn.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                if (pid !== null) { tapFire(); return; } // secondo dito: spara mentre l'altro spinge
+                pid = e.pointerId;
+                btn.setPointerCapture(pid);
+                t0 = Date.now();
+                // la spinta parte solo se il dito resta premuto: un tocco rapido è uno sparo
+                timer = setTimeout(() => {
+                    if (pid !== null) { thrusting = true; keys.ArrowUp = true; btn.classList.add('active'); }
+                }, HOLD_MS);
+            });
+            const end = (e) => {
+                if (e.pointerId !== pid) return;
+                clearTimeout(timer);
+                const isTap = e.type === 'pointerup' && !thrusting && (Date.now() - t0) < TAP_MS;
+                pid = null;
+                stopThrust();
+                if (isTap) tapFire();
+            };
+            ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => btn.addEventListener(ev, end));
+            btn.addEventListener('contextmenu', (e) => e.preventDefault());
+        })();
+        // Aggiorna il cursore (ritorno al centro a dito sollevato) e restituisce la sterzata da -1 a 1
+        function getSteer() {
+            if (!steerHeld) {
+                steerPos *= 0.8;
+                if (Math.abs(steerPos) < 0.01) steerPos = 0;
+            }
+            if (knobEl) {
+                const half = wheelEl.clientWidth / 2 - 8;
+                knobEl.style.transform = `translateX(${steerPos * half}px)`;
+            }
+            let s = steerPos;
+            if (Math.abs(s) < 0.06) s = 0; // piccola zona morta al centro
+            if (keys.ArrowLeft) s = -1;
+            if (keys.ArrowRight) s = 1;
+            return s;
+        }
+        document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+        document.addEventListener('contextmenu', (e) => e.preventDefault());
+        // Schermo intero + blocco orizzontale: parte al tocco sulla schermata iniziale
+        function goFullscreen() {
+            const el = document.documentElement;
+            const req = el.requestFullscreen || el.webkitRequestFullscreen;
+            if (!req || document.fullscreenElement || document.webkitFullscreenElement) return;
+            try {
+                const p = req.call(el, { navigationUI: 'hide' });
+                const lock = () => { try { screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(()=>{}); } catch (e) {} };
+                if (p && p.then) p.then(lock).catch(()=>{}); else lock();
+            } catch (e) {}
+        }
+        function toggleFullscreen() {
+            if (document.fullscreenElement || document.webkitFullscreenElement) {
+                (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+            } else goFullscreen();
+        }
+        ['fullscreenchange', 'webkitfullscreenchange'].forEach(ev =>
+            document.addEventListener(ev, () => setTimeout(resize, 100)));
+
+        let gameStarted = false;
+        const startScreen = document.getElementById('start-screen');
+        function resetGameState() {
+            gameGen++;
+            score = 0; scoreValEl.textContent = 0;
+            shields = 100; shieldsEl.textContent = 100;
+            isDestroyed = false;
+            invulnerabilityTimer = 0; shieldHitTimer = 0; respawnTimer = 0;
+            bullets = []; klingonBullets = []; explosions = [];
+            lastShot = 0;
+            // L'Enterprise parte sempre dal centro dello schermo
+            ship.x = W / 2; ship.y = H / 2;
+            ship.vx = 0; ship.vy = 0;
+            ship.angle = -Math.PI / 2;
+            steerPos = 0; fireTapUntil = 0;
+        }
+        function startGame(level) {
+            if (gameStarted) return;
+            gameStarted = true;
+            resetGameState();
+            applyDifficulty(level);
+            goFullscreen();
+            // per qualche istante l'Enterprise resta al centro anche se lo schermo cambia dimensione
+            centerUntil = Date.now() + 800;
+            startScreen.style.display = 'none';
+            running = true;
+            requestAnimationFrame(gameLoop);
+        }
+        function backToMenu() {
+            running = false;
+            gameStarted = false;
+            gameGen++;
+            keys.ArrowUp = keys.ArrowLeft = keys.ArrowRight = keys.Control = false;
+            steerPos = 0;
+            startScreen.style.display = 'flex';
+        }
+        document.getElementById('btn-menu').addEventListener('click', backToMenu);
+        document.querySelectorAll('.level-btn').forEach(btn =>
+            btn.addEventListener('click', () => startGame(parseInt(btn.dataset.level, 10))));
+
+        // ===== Audio (sintetizzato con Web Audio, nessun file esterno) =====
+        let audioCtx = null, masterGain = null, noiseBuffer = null, muted = false;
+
+        function initAudio() {
+            if (audioCtx) {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                return;
+            }
+            try {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                if (!AC) return;
+                audioCtx = new AC();
+                masterGain = audioCtx.createGain();
+                masterGain.gain.value = muted ? 0 : 0.5;
+                masterGain.connect(audioCtx.destination);
+                const len = audioCtx.sampleRate;
+                noiseBuffer = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+                const data = noiseBuffer.getChannelData(0);
+                for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+            } catch (err) { audioCtx = null; }
+        }
+        ['keydown', 'mousedown', 'pointerdown', 'touchstart'].forEach(ev =>
+            window.addEventListener(ev, initAudio, { passive: true }));
+
+        function toggleMute() {
+            muted = !muted;
+            if (masterGain) masterGain.gain.value = muted ? 0 : 0.5;
+        }
+
+        function tone(type, f0, f1, dur, vol, delay = 0) {
+            if (!audioCtx || audioCtx.state !== 'running') return;
+            const t = audioCtx.currentTime + delay;
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(f0, t);
+            osc.frequency.exponentialRampToValueAtTime(Math.max(1, f1), t + dur);
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+            osc.connect(g);
+            g.connect(masterGain);
+            osc.start(t);
+            osc.stop(t + dur + 0.05);
+        }
+
+        function noise(fStart, fEnd, dur, vol, filterType = 'lowpass', q = 1) {
+            if (!audioCtx || audioCtx.state !== 'running' || !noiseBuffer) return;
+            const t = audioCtx.currentTime;
+            const src = audioCtx.createBufferSource();
+            src.buffer = noiseBuffer;
+            const filt = audioCtx.createBiquadFilter();
+            filt.type = filterType;
+            filt.Q.value = q;
+            filt.frequency.setValueAtTime(fStart, t);
+            filt.frequency.exponentialRampToValueAtTime(Math.max(20, fEnd), t + dur);
+            const g = audioCtx.createGain();
+            g.gain.setValueAtTime(vol, t);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+            src.connect(filt);
+            filt.connect(g);
+            g.connect(masterGain);
+            src.start(t, Math.random() * 0.5);
+            src.stop(t + dur + 0.05);
+        }
+
+        // ===== Vibrazione (haptic) =====
+        function vibrate(pattern) {
+            try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) {}
+        }
+
+        // Enterprise: "pew" acuto e pulito
+        function sfxPlayerShot() {
+            vibrate(12);
+            tone('square', 1300, 260, 0.16, 0.07);
+            tone('sine', 1900, 500, 0.12, 0.06);
+        }
+        // Klingon: disruttore grave e ruvido
+        function sfxKlingonShot() {
+            tone('sawtooth', 300, 70, 0.34, 0.08);
+            tone('square', 150, 50, 0.3, 0.06);
+        }
+        // Impatto sullo scudo: scarica elettrica + sfrigolio
+        function sfxShield() {
+            vibrate([70, 40, 70]);
+            noise(4500, 1200, 0.25, 0.22, 'bandpass', 2);
+            tone('triangle', 1500, 380, 0.32, 0.14);
+            tone('sine', 700, 220, 0.4, 0.1, 0.03);
+        }
+        // Esplosioni diversificate
+        function sfxExplosion(color) {
+            if (color === '#ddccbb') {            // asteroide: schianto secco
+                vibrate(35);
+                noise(3200, 350, 0.35, 0.3, 'lowpass');
+                tone('triangle', 220, 70, 0.2, 0.1);
+            } else if (color === '#ffcc00') {     // Klingon: botto medio
+                vibrate([90, 30, 50]);
+                noise(2200, 120, 0.75, 0.45, 'lowpass');
+                tone('sine', 140, 40, 0.6, 0.3);
+            } else {                              // Enterprise: grande esplosione
+                vibrate([350, 80, 200, 80, 120]);
+                noise(2800, 70, 1.3, 0.6, 'lowpass');
+                tone('sine', 110, 28, 1.1, 0.45);
+                tone('sawtooth', 90, 30, 0.9, 0.12);
+            }
+        }
+
+        let stars = [];
+        const starColors = [
+            'rgba(255, 255, 255, ', 
+            'rgba(180, 220, 255, ', 
+            'rgba(255, 220, 150, ', 
+            'rgba(255, 150, 180, ', 
+            'rgba(200, 150, 255, '  
+        ];
+
+        // Generatore pseudo-casuale con seme fisso: le stelle sono identiche in ogni livello e ad ogni partita
+        function mulberry32(seed) {
+            return function () {
+                seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+                let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+                t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+                return ((t ^ t >>> 14) >>> 0) / 4294967296;
+            };
+        }
+        const starRnd = mulberry32(20240601);
+        for (let i = 0; i < 700; i++) {
+            stars.push({
+                nx: starRnd(),
+                ny: starRnd(),
+                size: starRnd() * 0.9 + 0.3,
+                baseAlpha: starRnd() * 0.5 + 0.3,
+                twinkleSpeed: starRnd() * 0.05 + 0.01,
+                twinkleOffset: starRnd() * Math.PI * 2,
+                colorPrefix: starColors[Math.floor(starRnd() * starColors.length)],
+                glowSize: starRnd() * 1.5 + 0.5
+            });
+        }
+
+        let gameGen = 0;          // cambia a ogni nuova partita: invalida i timer della precedente
+        let respawnTimer = 0;     // invulnerabilità (con lampeggio) dopo la rinascita dell'Enterprise
+        let centerUntil = 0;      // finestra iniziale in cui l'Enterprise resta al centro (assestamento schermo intero)
+        let running = false;
+        let score = 0;
+        let shields = 100;
+        let lastShot = 0;
+        let shieldHitTimer = 0;
+        let invulnerabilityTimer = 0;
+        let isDestroyed = false;
+        let explosions = [];
+
+        const ship = {
+            x: W / 2,
+            y: H / 2,
+            vx: 0,
+            vy: 0,
+            angle: -Math.PI / 2,
+            rotationSpeed: 0.065,
+            thrustPower: 0.08,
+            friction: 0.996,
+            scale: 0.22,
+            radius: 14
+        };
+
+        // Sole con proprietà originali e coordinate di centro per il movimento casuale
+        const sun = {
+            x: W * 0.25,
+            y: H * 0.25,
+            radius: 30,
+            pullStrength: 0.018,
+            angleX: Math.random() * Math.PI * 2,
+            angleY: Math.random() * Math.PI * 2,
+            speedX: 0.0015,
+            speedY: 0.001
+        };
+
+        // Pianeta (anomalia) con proprietà originali e coordinate per il movimento casuale
+        const anomaly = {
+            x: Math.random() * (W - 200) + 100,
+            y: Math.random() * (H - 200) + 100,
+            radius: 9,
+            pullStrength: 0.01,
+            angleX: Math.random() * Math.PI * 2,
+            angleY: Math.random() * Math.PI * 2,
+            speedX: 0.002,
+            speedY: 0.00175
+        };
+
+        let bullets = [];
+        let klingonBullets = [];
+        let klingons = [];
+
+        function createKlingon() {
+            return {
+                x: Math.random() < 0.5 ? -50 : W + 50,
+                y: Math.random() * H,
+                speed: 0.6 + Math.random() * 0.6,
+                turnSpeed: 0.025,
+                radius: 12 * diff.size,
+                angle: Math.random() * Math.PI * 2,
+                lastKlingonShot: Date.now() + Math.random() * 3000
+            };
+        }
+
+
+        function createExplosionEffect(x, y, color = '#00ffcc') {
+            let particles = [];
+            const small = color === '#ddccbb';
+            sfxExplosion(color);
+            for (let i = 0; i < (small ? 12 : 20); i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 1 + Math.random() * 4.5;
+                particles.push({
+                    x: x, y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    rot: (Math.random() - 0.5) * 0.1,
+                    angle: Math.random() * Math.PI * 2,
+                    length: small ? 5 + Math.random() * 8 : 12 + Math.random() * 18,
+                    alpha: 1.0,
+                    decay: 0.008 + Math.random() * 0.012,
+                    color: color
+                });
+            }
+            explosions.push(particles);
+        }
+
+        function triggerRespawn(x, y) {
+            isDestroyed = true;
+            createExplosionEffect(x, y, '#00ffcc');
+            const gen = gameGen;
+            setTimeout(() => {
+                if (gen !== gameGen) return;
+                shields = 100;
+                shieldsEl.textContent = shields;
+                isDestroyed = false;
+                invulnerabilityTimer = 70;
+                respawnTimer = 150;
+                ship.x = W / 2;
+                ship.y = H / 2;
+                ship.vx = 0;
+                ship.vy = 0;
+                ship.angle = -Math.PI / 2;
+            }, 1200);
+        }
+
+        function hitShip() {
+            if (isDestroyed || invulnerabilityTimer > 0 || respawnTimer > 0) return;
+            shields -= 10;
+            shieldsEl.textContent = Math.max(0, shields);
+            shieldHitTimer = 30;
+            invulnerabilityTimer = 40;
+            sfxShield();
+            if (shields <= 0) {
+                triggerRespawn(ship.x, ship.y);
+            }
+        }
+
+        function shoot() {
+            if (isDestroyed) return;
+            const now = Date.now();
+            if (now - lastShot > 160) {
+                const noseDistance = 25 * ship.scale;
+                bullets.push({
+                    x: ship.x + Math.cos(ship.angle) * noseDistance,
+                    y: ship.y + Math.sin(ship.angle) * noseDistance,
+                    vx: ship.vx + Math.cos(ship.angle) * 9,
+                    vy: ship.vy + Math.sin(ship.angle) * 9,
+                    life: 55,
+                    seed: Math.random() * 100
+                });
+                lastShot = now;
+                sfxPlayerShot();
+            }
+        }
+
+        function drawSun() {
+            if (!diff.sun) return;
+            ctx.save();
+            ctx.translate(sun.x, sun.y);
+            
+            const time = Date.now() * 0.0004;
+            const pulse = (Math.sin(time) + 1) / 2; 
+            
+            const r = 255;
+            const g = Math.floor(220 - pulse * 100); 
+            const b = Math.floor(120 - pulse * 120); 
+            
+            const currentRadius = sun.radius + (pulse * 6);
+
+            const gradient = ctx.createRadialGradient(0, 0, currentRadius * 0.2, 0, 0, currentRadius * 2.8);
+            gradient.addColorStop(0, `rgba(255, 180, 50, 0.8)`);
+            gradient.addColorStop(0.5, `rgba(255, 90, 0, 0.3)`);
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(0, 0, currentRadius * 2.8, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+            ctx.shadowBlur = 50 + (pulse * 30);
+            ctx.shadowColor = `rgb(${r}, 120, 0)`;
+            ctx.beginPath();
+            ctx.arc(0, 0, currentRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawAnomaly() {
+            if (!diff.planet) return;
+            ctx.save();
+            ctx.translate(anomaly.x, anomaly.y);
+            
+            const time = Date.now() * 0.0008;
+            const pulse = (Math.sin(time) + 1) / 2;
+            const currentRadius = anomaly.radius + (pulse * 2.5);
+
+            const grad = ctx.createRadialGradient(0, 0, 2, 0, 0, currentRadius * 2.5);
+            grad.addColorStop(0, 'rgba(180, 100, 255, 0.9)');
+            grad.addColorStop(0.5, 'rgba(120, 50, 220, 0.4)');
+            grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(0, 0, currentRadius * 2.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#bb88ff';
+            ctx.shadowBlur = 25;
+            ctx.shadowColor = '#cc99ff';
+            ctx.beginPath();
+            ctx.arc(0, 0, currentRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawShip(x, y, angle) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            if (shieldHitTimer > 0) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(0, 0, 37 * diff.size, 0, Math.PI * 2);
+                ctx.strokeStyle = '#66ffff';
+                ctx.lineWidth = 3.5;
+                ctx.shadowBlur = 25;
+                ctx.shadowColor = '#00ffff';
+                ctx.stroke();
+                ctx.restore();
+                shieldHitTimer--;
+            }
+
+            ctx.rotate(angle + Math.PI / 2);
+            ctx.scale(ship.scale, ship.scale);
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            const R = 30;
+            const tracePath = () => {
+                ctx.beginPath();
+                ctx.moveTo(R, -R);
+                ctx.arc(0, -R, R, 0, Math.PI * 2);
+                ctx.moveTo(4, -R);
+                ctx.arc(0, -R, 4, 0, Math.PI * 2);
+                ctx.moveTo(0, 0);
+                ctx.lineTo(0, 32);
+                ctx.moveTo(-20, 24);
+                ctx.lineTo(20, 24);
+                ctx.moveTo(-20, 8);
+                ctx.lineTo(-20, 75);
+                ctx.moveTo(20, 8);
+                ctx.lineTo(20, 75);
+            };
+
+            // Passata 1: alone luminoso
+            ctx.strokeStyle = '#00ffcc';
+            ctx.lineWidth = 8;
+            ctx.shadowBlur = 16;
+            ctx.shadowColor = '#00ffcc';
+            tracePath();
+            ctx.stroke();
+
+            // Passata 2: nucleo netto e brillante
+            ctx.strokeStyle = '#eafffb';
+            ctx.lineWidth = 4.5;
+            ctx.shadowBlur = 0;
+            tracePath();
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawKlingon(x, y, angle) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle + Math.PI / 2);
+            ctx.scale(0.13 * diff.size, 0.13 * diff.size);
+            ctx.lineJoin = 'miter';
+            ctx.lineCap = 'butt';
+
+            const bodyW = 99, bodyH = 63;
+            const bodyX = -bodyW / 2, bodyY = -bodyH / 2;
+            const neckLength = 95;
+            const neckTopY = bodyY - neckLength;
+            const circleRadius = 22;
+            const circleY = neckTopY - circleRadius;
+            const triHalfW = 24, triH = 34;
+            const triBottomY = circleY + 6;
+            const triTopY = triBottomY - triH;
+            const wingOffset = 95;
+
+            const drawParts = (core) => {
+                // corpo e collo
+                ctx.beginPath();
+                ctx.rect(bodyX, bodyY, bodyW, bodyH);
+                ctx.moveTo(0, bodyY);
+                ctx.lineTo(0, neckTopY);
+                ctx.stroke();
+
+                // testa circolare
+                ctx.beginPath();
+                ctx.arc(0, circleY, circleRadius, 0, Math.PI * 2);
+                if (!core) { ctx.fillStyle = '#0a0512'; ctx.fill(); }
+                ctx.stroke();
+
+                // triangolo
+                ctx.beginPath();
+                ctx.moveTo(0, triBottomY);
+                ctx.lineTo(-triHalfW, triTopY);
+                ctx.lineTo(triHalfW, triTopY);
+                ctx.closePath();
+                if (!core) { ctx.fillStyle = '#0a0512'; ctx.fill(); }
+                ctx.stroke();
+
+                // gondole e supporti
+                ctx.beginPath();
+                ctx.moveTo(-wingOffset, bodyY + 15);
+                ctx.lineTo(-wingOffset, bodyY + 185);
+                ctx.moveTo(wingOffset, bodyY + 15);
+                ctx.lineTo(wingOffset, bodyY + 185);
+                ctx.moveTo(bodyX, bodyY);
+                ctx.lineTo(-wingOffset, bodyY + 75);
+                ctx.moveTo(bodyX, bodyY + bodyH);
+                ctx.lineTo(-wingOffset, bodyY + bodyH + 65);
+                ctx.moveTo(bodyX + bodyW, bodyY);
+                ctx.lineTo(wingOffset, bodyY + 75);
+                ctx.moveTo(bodyX + bodyW, bodyY + bodyH);
+                ctx.lineTo(wingOffset, bodyY + bodyH + 65);
+                ctx.stroke();
+            };
+
+            // Passata 1: alone luminoso
+            ctx.strokeStyle = '#ffdd33';
+            ctx.lineWidth = 10;
+            ctx.shadowBlur = 18;
+            ctx.shadowColor = '#ff6600';
+            drawParts(false);
+
+            // Passata 2: nucleo netto e brillante
+            ctx.strokeStyle = '#fffbd0';
+            ctx.lineWidth = 5.5;
+            ctx.shadowBlur = 0;
+            drawParts(true);
+            ctx.restore();
+        }
+
+        // ===== Asteroidi vaganti =====
+        let asteroids = [];
+
+        function createAsteroid() {
+            let x, y;
+            do {
+                x = Math.random() * W;
+                y = Math.random() * H;
+            } while (Math.hypot(x - ship.x, y - ship.y) < 160);
+            const n = 7 + Math.floor(Math.random() * 3);
+            const r = 5 + Math.random() * 4;
+            const verts = [];
+            for (let i = 0; i < n; i++) {
+                const a = (i / n) * Math.PI * 2;
+                const d = r * (0.7 + Math.random() * 0.5);
+                verts.push([Math.cos(a) * d, Math.sin(a) * d]);
+            }
+            const heading = Math.random() * Math.PI * 2;
+            const sp = 0.3 + Math.random() * 0.5;
+            return {
+                x, y,
+                vx: Math.cos(heading) * sp,
+                vy: Math.sin(heading) * sp,
+                radius: r * 1.1,
+                rot: Math.random() * Math.PI * 2,
+                rotSpeed: (Math.random() - 0.5) * 0.04,
+                verts
+            };
+        }
+
+
+        // ===== Difficoltà (1 = facile ... 5 = come l'impostazione originale) =====
+        const LEVELS = {
+            1: { speed: 0.45, asteroids: 2, klingons: 1, sun: false, planet: false, size: 1.32 },
+            2: { speed: 0.60, asteroids: 3, klingons: 2, sun: false, planet: true,  size: 1.24 },
+            3: { speed: 0.75, asteroids: 4, klingons: 3, sun: true,  planet: true,  size: 1.16 },
+            4: { speed: 0.90, asteroids: 5, klingons: 4, sun: true,  planet: true,  size: 1.08 },
+            5: { speed: 1.00, asteroids: 6, klingons: 5, sun: true,  planet: true,  size: 1.00 }
+        };
+        let diff = LEVELS[5];
+        const sunBaseSpeed = { x: sun.speedX, y: sun.speedY };
+        const anomalyBaseSpeed = { x: anomaly.speedX, y: anomaly.speedY };
+        function applyDifficulty(level) {
+            diff = LEVELS[level] || LEVELS[5];
+            sun.speedX = sunBaseSpeed.x * diff.speed;
+            sun.speedY = sunBaseSpeed.y * diff.speed;
+            anomaly.speedX = anomalyBaseSpeed.x * diff.speed;
+            anomaly.speedY = anomalyBaseSpeed.y * diff.speed;
+            ship.scale = 0.22 * diff.size;
+            ship.radius = 14 * diff.size;
+            klingons = [];
+            asteroids = [];
+            for (let i = 0; i < diff.klingons; i++) klingons.push(createKlingon());
+            for (let i = 0; i < diff.asteroids; i++) asteroids.push(createAsteroid());
+        }
+
+        function destroyAsteroid(idx) {
+            const a = asteroids[idx];
+            createExplosionEffect(a.x, a.y, '#ddccbb');
+            asteroids.splice(idx, 1);
+            const gen = gameGen;
+            setTimeout(() => { if (gen === gameGen) asteroids.push(createAsteroid()); }, 3000);
+        }
+
+        function updateAndDrawAsteroids() {
+            asteroids.forEach(a => {
+                // Traiettoria imprevedibile: piccole deviazioni continue + cambi di rotta improvvisi
+                a.vx += (Math.random() - 0.5) * 0.03;
+                a.vy += (Math.random() - 0.5) * 0.03;
+                if (Math.random() < 0.004) {
+                    const h = Math.random() * Math.PI * 2;
+                    const s = 0.3 + Math.random() * 0.5;
+                    a.vx = Math.cos(h) * s;
+                    a.vy = Math.sin(h) * s;
+                }
+                let sp = Math.hypot(a.vx, a.vy);
+                const minSp = 0.25, maxSp = 0.9;
+                if (sp > maxSp) { a.vx *= maxSp / sp; a.vy *= maxSp / sp; }
+                else if (sp < minSp && sp > 0) { a.vx *= minSp / sp; a.vy *= minSp / sp; }
+
+                a.x += a.vx * diff.speed;
+                a.y += a.vy * diff.speed;
+                a.rot += a.rotSpeed * diff.speed;
+
+                if (a.x < -20) a.x = W + 20;
+                if (a.x > W + 20) a.x = -20;
+                if (a.y < -20) a.y = H + 20;
+                if (a.y > H + 20) a.y = -20;
+
+                ctx.save();
+                ctx.translate(a.x, a.y);
+                ctx.rotate(a.rot);
+                ctx.lineJoin = 'round';
+                const trace = () => {
+                    ctx.beginPath();
+                    a.verts.forEach((v, i) => i === 0 ? ctx.moveTo(v[0], v[1]) : ctx.lineTo(v[0], v[1]));
+                    ctx.closePath();
+                };
+                ctx.fillStyle = '#0a0810';
+                ctx.strokeStyle = '#c9b8a8';
+                ctx.lineWidth = 2.2;
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = '#aa8866';
+                trace();
+                ctx.fill();
+                ctx.stroke();
+                ctx.strokeStyle = '#fff4e6';
+                ctx.lineWidth = 1.1;
+                ctx.shadowBlur = 0;
+                trace();
+                ctx.stroke();
+                ctx.restore();
+            });
+        }
+
+        function gameLoop() {
+            if (!running) return;
+            ctx.setTransform(SCALE * DPR, 0, 0, SCALE * DPR, 0, 0);
+            ctx.clearRect(0, 0, W, H);
+
+            if (invulnerabilityTimer > 0) invulnerabilityTimer--;
+            if (respawnTimer > 0) respawnTimer--;
+
+            // Movimento lento e casuale del Sole all'interno dei confini dello schermo
+            if (diff.sun) {
+                sun.angleX += sun.speedX;
+                sun.angleY += sun.speedY;
+                sun.x = W * 0.5 + Math.sin(sun.angleX) * (W * 0.3);
+                sun.y = H * 0.5 + Math.cos(sun.angleY) * (H * 0.3);
+            } else {
+                sun.x = sun.y = -100000; // assente: lontanissimo, nessun effetto
+            }
+
+            // Movimento lento e casuale del Pianeta/Anomalia all'interno dei confini dello schermo
+            if (diff.planet) {
+                anomaly.angleX += anomaly.speedX;
+                anomaly.angleY += anomaly.speedY;
+                anomaly.x = W * 0.5 + Math.cos(anomaly.angleX) * (W * 0.35);
+                anomaly.y = H * 0.5 + Math.sin(anomaly.angleY) * (H * 0.35);
+            } else {
+                anomaly.x = anomaly.y = -100000;
+            }
+
+            const time = Date.now() * 0.001;
+            stars.forEach(star => {
+                const twinkle = Math.sin(time * star.twinkleSpeed * 60 + star.twinkleOffset);
+                const alpha = Math.max(0.1, star.baseAlpha + twinkle * 0.35);
+                
+                ctx.fillStyle = star.colorPrefix + alpha + ')';
+                if (star.glowSize > 1.5) {
+                    ctx.shadowBlur = star.glowSize * (1 + twinkle * 0.5);
+                    ctx.shadowColor = star.colorPrefix + '0.8)';
+                }
+                ctx.beginPath();
+                ctx.arc(star.nx * W, star.ny * H, star.size + (twinkle > 0.5 ? 0.3 : 0), 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            });
+
+            drawSun();
+            drawAnomaly();
+            updateAndDrawAsteroids();
+
+            if (!isDestroyed) {
+                const dxAnomaly = sun.x - ship.x;
+                const dyAnomaly = sun.y - ship.y;
+                const distAnomaly = Math.hypot(dxAnomaly, dyAnomaly);
+                if (distAnomaly < 600 && distAnomaly > 0) {
+                    ship.vx += (dxAnomaly / distAnomaly) * sun.pullStrength;
+                    ship.vy += (dyAnomaly / distAnomaly) * sun.pullStrength;
+                }
+                if (respawnTimer <= 0 && distAnomaly < ship.radius + sun.radius) {
+                    shields = 0;
+                    shieldsEl.textContent = 0;
+                    triggerRespawn(ship.x, ship.y);
+                }
+
+                const dxAnom2 = anomaly.x - ship.x;
+                const dyAnom2 = anomaly.y - ship.y;
+                const distAnom2 = Math.hypot(dxAnom2, dyAnom2);
+                if (distAnom2 < 400 && distAnom2 > 0) {
+                    ship.vx += (dxAnom2 / distAnom2) * anomaly.pullStrength;
+                    ship.vy += (dyAnom2 / distAnom2) * anomaly.pullStrength;
+                }
+                if (respawnTimer <= 0 && distAnom2 < ship.radius + anomaly.radius) {
+                    shields = 0;
+                    shieldsEl.textContent = 0;
+                    triggerRespawn(ship.x, ship.y);
+                }
+
+                for (const a of asteroids) {
+                    if (!isDestroyed && respawnTimer <= 0 && Math.hypot(a.x - ship.x, a.y - ship.y) < ship.radius + a.radius) {
+                        shields = 0;
+                        shieldsEl.textContent = 0;
+                        triggerRespawn(ship.x, ship.y);
+                        break;
+                    }
+                }
+
+                ship.angle += ship.rotationSpeed * getSteer();
+                if (keys.ArrowUp) {
+                    ship.vx += Math.cos(ship.angle) * ship.thrustPower;
+                    ship.vy += Math.sin(ship.angle) * ship.thrustPower;
+                }
+                if (keys.Control || Date.now() < fireTapUntil) shoot();
+
+                ship.vx *= ship.friction;
+                ship.vy *= ship.friction;
+                ship.x += ship.vx;
+                ship.y += ship.vy;
+
+                if (ship.x < 0) ship.x = W;
+                if (ship.x > W) ship.x = 0;
+                if (ship.y < 0) ship.y = H;
+                if (ship.y > H) ship.y = 0;
+
+                if (Date.now() < centerUntil) {
+                    ship.x = W / 2; ship.y = H / 2;
+                    ship.vx = 0; ship.vy = 0;
+                }
+            }
+
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                let b = bullets[i];
+                const dxB = sun.x - b.x;
+                const dyB = sun.y - b.y;
+                const distB = Math.hypot(dxB, dyB);
+                if (distB < 300 && distB > 0) {
+                    b.vx += (dxB / distB) * 0.02;
+                    b.vy += (dyB / distB) * 0.02;
+                }
+
+                b.x += b.vx;
+                b.y += b.vy;
+                b.life--;
+
+                ctx.save();
+                const bFlicker = Date.now() * 0.03 + b.seed;
+                const bColor = Math.sin(bFlicker) > 0 ? '#00ffff' : '#88ffbb';
+                ctx.fillStyle = bColor;
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = bColor;
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, 3.2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                let hitSun = Math.hypot(sun.x - b.x, sun.y - b.y) < sun.radius;
+                let hitAnom = Math.hypot(anomaly.x - b.x, anomaly.y - b.y) < anomaly.radius;
+                let astIdx = asteroids.findIndex(a => Math.hypot(a.x - b.x, a.y - b.y) < a.radius);
+                let hitAst = astIdx !== -1;
+                if (hitAst) {
+                    destroyAsteroid(astIdx);
+                }
+                if (hitSun || hitAnom || hitAst || b.life <= 0) {
+                    bullets.splice(i, 1);
+                }
+            }
+
+            for (let i = klingons.length - 1; i >= 0; i--) {
+                let k = klingons[i];
+                let targetAngle = Math.atan2(ship.y - k.y, ship.x - k.x);
+                let avoidSunVx = 0, avoidSunVy = 0;
+                let avoidKlingonVx = 0, avoidKlingonVy = 0;
+
+                const dxK = sun.x - k.x;
+                const dyK = sun.y - k.y;
+                const distK = Math.hypot(dxK, dyK);
+                if (distK < 400 && distK > 0) {
+                    k.vx = (k.vx || 0) + (dxK / distK) * 0.005;
+                    k.vy = (k.vy || 0) + (dyK / distK) * 0.005;
+                }
+                if (distK < sun.radius + 40 && distK > 0) {
+                    let repForce = ((sun.radius + 40) - distK) / (sun.radius + 40) * 0.15;
+                    avoidSunVx -= (dxK / distK) * repForce;
+                    avoidSunVy -= (dyK / distK) * repForce;
+                }
+
+                for (let j = 0; j < klingons.length; j++) {
+                    if (i === j) continue;
+                    let otherK = klingons[j];
+                    let distBetweenK = Math.hypot(otherK.x - k.x, otherK.y - k.y);
+                    if (distBetweenK < k.radius + otherK.radius) {
+                        createExplosionEffect(k.x, k.y, '#ffcc00');
+                        klingons.splice(i, 1);
+                        klingons.push(createKlingon());
+                        score += 1;
+                        scoreValEl.textContent = score;
+                        break;
+                    }
+                    if (distBetweenK < 70 && distBetweenK > 0) {
+                        let pushForce = (70 - distBetweenK) / 70 * 0.15;
+                        avoidKlingonVx -= ((otherK.x - k.x) / distBetweenK) * pushForce;
+                        avoidKlingonVy -= ((otherK.y - k.y) / distBetweenK) * pushForce;
+                    }
+                }
+
+                if (!klingons[i]) continue;
+
+                k.vx = (k.vx || 0) * 0.96;
+                k.vy = (k.vy || 0) * 0.96;
+
+                let totalAvoidX = avoidSunVx + avoidKlingonVx;
+                let totalAvoidY = avoidSunVy + avoidKlingonVy;
+                if (totalAvoidX !== 0 || totalAvoidY !== 0) {
+                    let adjustedTargetX = (ship.x - k.x) + totalAvoidX * 300;
+                    let adjustedTargetY = (ship.y - k.y) + totalAvoidY * 300;
+                    targetAngle = Math.atan2(adjustedTargetY, adjustedTargetX);
+                }
+
+                let angleDiff = targetAngle - k.angle;
+                while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                const turn = k.turnSpeed * diff.speed;
+                k.angle += Math.sign(angleDiff) * Math.min(turn, Math.abs(angleDiff));
+
+                k.x += (Math.cos(k.angle) * k.speed + (k.vx || 0) + totalAvoidX * 12) * diff.speed;
+                k.y += (Math.sin(k.angle) * k.speed + (k.vy || 0) + totalAvoidY * 12) * diff.speed;
+
+                if (k.x < -50) k.x = W + 50;
+                if (k.x > W + 50) k.x = -50;
+                if (k.y < -50) k.y = H + 50;
+                if (k.y > H + 50) k.y = -50;
+
+                let hitSun = Math.hypot(sun.x - k.x, sun.y - k.y) < k.radius + sun.radius;
+                if (hitSun) {
+                    createExplosionEffect(k.x, k.y, '#ffcc00');
+                    klingons.splice(i, 1);
+                    klingons.push(createKlingon());
+                    score += 1;
+                    scoreValEl.textContent = score;
+                    continue;
+                }
+
+                if (asteroids.some(a => Math.hypot(a.x - k.x, a.y - k.y) < a.radius + k.radius)) {
+                    createExplosionEffect(k.x, k.y, '#ffcc00');
+                    klingons.splice(i, 1);
+                    klingons.push(createKlingon());
+                    score += 1;
+                    scoreValEl.textContent = score;
+                    continue;
+                }
+
+                drawKlingon(k.x, k.y, k.angle);
+
+                const now = Date.now();
+                if (!isDestroyed && now > k.lastKlingonShot && Math.hypot(ship.x - k.x, ship.y - k.y) < 600) {
+                    klingonBullets.push({
+                        x: k.x, y: k.y,
+                        vx: Math.cos(k.angle) * 4.5 * diff.speed,
+                        vy: Math.sin(k.angle) * 4.5 * diff.speed,
+                        life: 250,
+                        seed: Math.random() * 100
+                    });
+                    k.lastKlingonShot = now + (2000 + Math.random() * 2000) / diff.speed;
+                    sfxKlingonShot();
+                }
+
+                if (!isDestroyed && Math.hypot(ship.x - k.x, ship.y - k.y) < ship.radius + k.radius) {
+                    hitShip();
+                    createExplosionEffect(k.x, k.y, '#ffcc00');
+                    klingons.splice(i, 1);
+                    klingons.push(createKlingon());
+                    continue;
+                }
+
+                let klingonHit = false;
+                for (let j = bullets.length - 1; j >= 0; j--) {
+                    let b = bullets[j];
+                    if (Math.hypot(b.x - k.x, b.y - k.y) < k.radius + 8) {
+                        bullets.splice(j, 1);
+                        createExplosionEffect(k.x, k.y, '#ffcc00');
+                        klingons.splice(i, 1);
+                        score += 1;
+                        scoreValEl.textContent = score;
+                        klingons.push(createKlingon());
+                        klingonHit = true;
+                        break;
+                    }
+                }
+                if (klingonHit) continue;
+            }
+
+            for (let i = klingonBullets.length - 1; i >= 0; i--) {
+                let kb = klingonBullets[i];
+                const dxKB = sun.x - kb.x;
+                const dyKB = sun.y - kb.y;
+                const distKB = Math.hypot(dxKB, dyKB);
+                if (distKB < 300 && distKB > 0) {
+                    kb.vx += (dxKB / distKB) * 0.05;
+                    kb.vy += (dyKB / distKB) * 0.05;
+                }
+
+                kb.x += kb.vx;
+                kb.y += kb.vy;
+                kb.life--;
+
+                ctx.save();
+                const flickerTime = Date.now() * 0.025 + kb.seed;
+                const sizeVar = 2.8 + Math.sin(flickerTime * 5) * 1.5;
+                const alphaVar = 0.7 + Math.sin(flickerTime * 10) * 0.3;
+                
+                const vibrantColors = ['#ffaa00', '#ff2233', '#ffffff', '#ff5500', '#ffea66'];
+                const colorIdx = Math.floor(Math.abs(Math.sin(flickerTime)) * vibrantColors.length) % vibrantColors.length;
+                
+                ctx.fillStyle = vibrantColors[colorIdx];
+                ctx.shadowBlur = 18;
+                ctx.shadowColor = vibrantColors[colorIdx];
+                ctx.globalAlpha = Math.max(0.3, alphaVar);
+                
+                ctx.beginPath();
+                ctx.arc(kb.x, kb.y, Math.max(1, sizeVar), 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                if (!isDestroyed && Math.hypot(ship.x - kb.x, ship.y - kb.y) < ship.radius + 3) {
+                    klingonBullets.splice(i, 1);
+                    hitShip();
+                    continue;
+                }
+
+                let hitSun = Math.hypot(sun.x - kb.x, sun.y - kb.y) < sun.radius;
+                let astIdxK = asteroids.findIndex(a => Math.hypot(a.x - kb.x, a.y - kb.y) < a.radius);
+                let hitAstK = astIdxK !== -1;
+                if (hitAstK) destroyAsteroid(astIdxK);
+                if (hitSun || hitAstK || kb.life <= 0) klingonBullets.splice(i, 1);
+            }
+
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                let particles = explosions[i];
+                let activeParticles = 0;
+                particles.forEach(d => {
+                    d.x += d.vx;
+                    d.y += d.vy;
+                    d.angle += d.rot;
+                    d.alpha = Math.max(0, d.alpha - d.decay);
+
+                    if (d.alpha > 0) {
+                        activeParticles++;
+                        ctx.save();
+                        ctx.translate(d.x, d.y);
+                        ctx.rotate(d.angle);
+                        ctx.strokeStyle = d.color === '#ddccbb' ? `rgba(221, 204, 187, ${d.alpha})` : d.color === '#ffcc00' ? `rgba(255, 204, 0, ${d.alpha})` : (d.color === '#88aaff' ? `rgba(136, 170, 255, ${d.alpha})` : `rgba(0, 255, 204, ${d.alpha})`);
+                        ctx.lineWidth = 2;
+                        ctx.shadowBlur = 14 * d.alpha;
+                        ctx.shadowColor = d.color;
+                        ctx.beginPath();
+                        ctx.moveTo(-d.length / 2, 0);
+                        ctx.lineTo(d.length / 2, 0);
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                });
+                if (activeParticles === 0) explosions.splice(i, 1);
+            }
+
+            if (!isDestroyed) {
+                // durante l'invulnerabilità di rinascita l'Enterprise lampeggia
+                const blinkOff = respawnTimer > 0 && Math.floor(respawnTimer / 6) % 2 === 0;
+                if (!blinkOff) drawShip(ship.x, ship.y, ship.angle);
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+    </script>
+</body>
+</html>
